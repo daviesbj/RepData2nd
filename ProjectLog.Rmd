@@ -1,0 +1,57 @@
+Project Log -- Severe Weather Impact Analysis (RDA Project 2)
+=============================================================
+
+Getting and loading the online data (cached)
+--------------------------------------------
+
+```{r Get and Load Online Data, cache = TRUE }
+qtDload = TRUE
+download.file( 'https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2',
+               destfile = 'StormData.csv.bz2', method='curl', quiet = qtDload )
+download.file( 'https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf',
+               destfile = 'pd01016005curr.pdf', method='curl', quiet = qtDload )
+download.file( 'https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf',
+               destfile = 'Storm_Events_FAQ.pdf', method='curl', quiet = qtDload )
+# install.packages("R.utils")
+library('R.utils')
+bunzip2( 'StormData.csv.bz2', remove = FALSE, overwrite = TRUE )
+s <- read.csv('StormData.csv')
+save( s, file = 'stormDataRaw.Robj' )
+```
+
+Exploratory Data Analysis and Cleanup
+-------------------------------------
+
+Check for bad data:
+
+```{r check for bad data, cache = TRUE }
+for( colName in colnames( s ) ){
+  nNA <- sum( is.na( s[,colName] ) )
+  if( nNA > 0 ) message( colName, ': ', nNA, ' missing values' )
+}
+```
+
+None of those are really relevant to the question being asked.
+
+As I have a limited time to do this analysis, I need to work with the minimum
+necessary dataset. At the moment it contains `r length( s$EVTYPE )` records.
+So I want events with the following __non-zero__
+
+* FATALITIES
+* INJURIES
+* PROPDMG
+* CROPDMG
+
+```{r Filter nonfatal/injurious/damaging events}
+wantedEvents <- ( s$FATALITIES>0 | s$INJURIES>0 | s$PROPDMG>0 | s$CROPDMG>0 )
+s <- s[wantedEvents,]
+```
+
+Now we're down to `r length( s$EVTYPE )` events.
+
+Now to tidy up the damage values. The problem is the multipliers.
+
+```{r silly multipliers}
+levels(s$PROPDMGEXP)
+levels(s$CROPDMGEXP)
+```
