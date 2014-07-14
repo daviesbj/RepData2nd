@@ -23,8 +23,8 @@ s <- read.csv('StormData.csv')
 save( s, file = 'stormDataRaw.Robj' )
 ```
 
-Exploratory Data Analysis and Cleanup
--------------------------------------
+Rough Cleanup
+-------------
 
 Check for bad data:
 
@@ -52,6 +52,9 @@ s <- s[wantedEvents,]
 ```
 
 Now we're down to `r length( s$EVTYPE )` events.
+
+Clean up damage values
+----------------------
 
 Now to tidy up the damage values. The problem is the multipliers.
 
@@ -135,3 +138,6 @@ Well, that definitely happened. http://en.wikipedia.org/wiki/Great_flood_of_93#C
 accessed 14 July 2014.
 
 __That's all the time I have available to spend on fixing up damage estimates__
+
+Normalize event categories
+--------------------------
