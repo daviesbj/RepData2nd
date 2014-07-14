@@ -1,6 +1,10 @@
 Project Log -- Severe Weather Impact Analysis (RDA Project 2)
 =============================================================
 
+```{r load necessary library}
+library('R.utils')
+```
+
 Getting and loading the online data (cached)
 --------------------------------------------
 
@@ -42,7 +46,7 @@ So I want events with the following __non-zero__
 * PROPDMG
 * CROPDMG
 
-```{r Filter nonfatal/injurious/damaging events}
+```{r Filter nonfatal/injurious/damaging events, cache=TRUE}
 wantedEvents <- ( s$FATALITIES>0 | s$INJURIES>0 | s$PROPDMG>0 | s$CROPDMG>0 )
 s <- s[wantedEvents,]
 ```
@@ -52,6 +56,82 @@ Now we're down to `r length( s$EVTYPE )` events.
 Now to tidy up the damage values. The problem is the multipliers.
 
 ```{r silly multipliers}
-levels(s$PROPDMGEXP)
-levels(s$CROPDMGEXP)
+table(toupper(as.character(s$PROPDMGEXP))[s$PROPDMG!=0])
+table(toupper(as.character(s$CROPDMGEXP))[s$CROPDMG!=0])
 ```
+
+Will extract these to an array and work there. Set up list of valid __*DMGEXP*__
+values first.
+
+```{r fix damage value to numerics, cache=TRUE}
+goodexp <- c( 'H', 'K', 'M', 'B' )
+
+p_mantissa <- s$PROPDMG
+p_exp <- toupper(as.character(s$PROPDMGEXP))
+p_mult <- rep(1,length(p_exp))
+p_mult[p_exp=='H'] <- 100
+p_mult[p_exp=='K'] <- 1000
+p_mult[p_exp=='M'] <- 1e6
+p_mult[p_exp=='B'] <- 1e9
+p_fixed <- p_mantissa * p_mult
+p_fixed[ !(p_exp %in% goodexp) & p_fixed > 0 ] <- NA
+summary(p_fixed)
+
+c_mantissa <- s$CROPDMG
+c_exp <- toupper(as.character(s$CROPDMGEXP))
+c_mult <- rep(1,length(c_exp))
+c_mult[c_exp=='H'] <- 100
+c_mult[c_exp=='K'] <- 1000
+c_mult[c_exp=='M'] <- 1e6
+c_mult[c_exp=='B'] <- 1e9
+c_fixed <- c_mantissa * c_mult
+c_fixed[ !(c_exp %in% goodexp) & c_fixed > 0 ] <- NA
+summary(c_fixed)
+```
+
+Some of the values look a bit fishy. Specifically, was there REALLY a single
+event that cost dollar `r max(p_fixed,na.rm=TRUE)` in property
+damage when the all-time total for property damage was
+dollar `r sum(p_fixed,na.rm=TRUE)` ?
+
+```{r output fishy hi-cost event}
+s[which.max(p_fixed),]
+```
+
+A search in Wikipedia for __Napa River Flood__ found a flood in 1986 at
+http://en.wikipedia.org/wiki/Napa_River_flood_of_1986 accessed 14 July 2014
+which includes the text _"damages totaled $100 million ... Another flood of
+lesser proportions occurred on December 31, 2005 after over a week of rain"_
+which must mean that the event in the database has got a _B_ instead of an
+_M_ in the PROPDMGEXP column. So I'm going to edit out JUST that specific
+one (because it's almost a quarter of the total property damage so it's really
+egregious), but I don't have the capacity to fix any others.
+
+```{r remove single outlier event}
+p_fixed[ !is.na( p_fixed )
+         & p_fixed > 1e11 ] <-
+  p_fixed[ !is.na( p_fixed)
+           & p_fixed > 1e11 ] / 1000
+```
+
+Now let's look at the next outlier
+
+```{r output next highest hi-cost event, cache = TRUE}
+s[ which.max( p_fixed ), ]
+```
+
+That's Katrina, credible at  dollars 31.3 billion
+http://en.wikipedia.org/wiki/Hurricane_katrina#Economic_effects accessed
+14 July 2014.
+
+What about top crop damage?
+
+```{r Look at max crop damage, cache = TRUE }
+max( c_fixed, na.rm = TRUE )
+substr(s[which.max(c_fixed),]$REMARKS, 1, 300 )
+```
+
+Well, that definitely happened. http://en.wikipedia.org/wiki/Great_flood_of_93#Costs_and_damage
+accessed 14 July 2014.
+
+__That's all the time I have available to spend on fixing up damage estimates__
