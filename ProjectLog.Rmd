@@ -141,3 +141,69 @@ __That's all the time I have available to spend on fixing up damage estimates__
 
 Normalize event categories
 --------------------------
+
+Set up a smaller frame __c__ to work with
+
+```{r set up frame c for simplification, cache = TRUE }
+evType <- sub( '^ +', '', toupper(as.character(s$EVTYPE)))
+c <- data.frame(
+  EVTYPE_OLD = evType,
+  EVTYPE_NEW = rep( 'other', length(evType)),
+  FATALITIES = s$FATALITIES,
+  INJURIES = s$INJURIES,
+  PROPDMG = p_fixed,
+  CROPDMG = c_fixed
+  )
+c$EVTYPE_OLD <- as.character(c$EVTYPE_OLD)
+c$EVTYPE_NEW <- as.character(c$EVTYPE_NEW)
+head(c)
+```
+
+Add some functions to help monitor progress
+
+```{r some helper functions for cleaning up categories}
+
+# SumCat -- summarize impact of all events matching pattern
+SumCat <- function( pattern, set = 'OLD' ){
+if( pattern != 'other' ) pattern <- toupper(pattern)
+set <- toupper(set)
+which <- grep( pattern, c$EVTYPE_OLD )
+ntype <- length( levels( as.factor( c$EVTYPE_OLD[which] ) ) )
+if( set == 'NEW' ){
+  which <- grep( pattern, c$EVTYPE_NEW )
+  ntype <- length( levels( as.factor( c$EVTYPE_NEW[which] ) ) )
+  }
+message( 'In ', set, ' pattern ', pattern, ' matches: ', length( which ), ' events, of ', ntype, ' EVTYPEs' )
+message( '   ', sum( c$FATALITIES[which] ), ' FATALITIES' )
+message( '   ', sum( c$INJURIES[which] ), ' INJURIES' )
+message( '   ', sprintf( '%.2e', sum( c$PROPDMG[which], na.rm=TRUE ) ), ' PROPDMG' )
+message( '   ', sprintf( '%.2e', sum( c$CROPDMG[which], na.rm=TRUE ) ), ' CROPDMG' )
+}
+
+# Matches() -- enumerate event type matching pattern
+Matches <- function( pattern ){ levels( as.factor( evType[ grep( pattern, evType ) ] ) ) }
+
+# Nmatch() -- how many
+Nmatch  <- function( pattern ){ length( matches( pattern ) ) }
+
+# Others() -- which not done yet
+Others  <- function(){ levels( as.factor( evType[ c$EVTYPE_NEW == 'other' ] ) ) }
+
+# SetNew() -- allocate new name
+SetNew <- function( pattern_from, string_to ){
+pattern_from = toupper( pattern_from )
+string_to <- toupper( string_to )
+which <- grep( pattern_from, c$EVTYPE_OLD )
+c$EVTYPE_NEW[which] <- string_to
+}
+```
+
+So now we do stuff like this
+
+```{r simplify tornadoes}
+Matches('TORNADO')
+SumCat('TORNADO')
+```
+
+Get a nice year column
+----------------------
