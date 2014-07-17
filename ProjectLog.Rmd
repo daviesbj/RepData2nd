@@ -399,5 +399,48 @@ c$YEAR <- years
 head( c )
 ```
 
-
 There's something a bit fishy about the event frequencies through time.
+Here goes a nice summary table ...
+
+```{r summary of data by year, cache = TRUE }
+notypes <- data.frame( FATALITIES = c$FATALITIES, INJURIES = c$INJURIES,
+                       PROPDMG = c$PROPDMG, CROPDMG = c$CROPDMG )
+
+yInc <- aggregate( c$YEAR, list(c$YEAR), length )
+yTot <- aggregate(notypes,list(c$YEAR), sum, na.rm=TRUE )
+ySum <- data.frame(
+  YEAR = yInc$Group.1,
+  N = yInc$x,
+  DEATHS = yTot$FATALITIES,
+  INJURIES = yTot$INJURIES,
+  PROPDMG = yTot$PROPDMG,
+  CROPDMG = yTot$CROPDMG
+  )
+ySum
+```
+
+Everything changed in 1993. Deaths jumped, and CROPDMG started.
+So I'm going to ignore everything before then.
+
+```{r edit out everything pre-1993}
+c <- c[c$YEAR>=1993,]
+```
+
+Now for a summary of stats by event type
+
+```{r summary of post-1992 by type, cache = TRUE }
+notypes <- data.frame( FATALITIES = c$FATALITIES, INJURIES = c$INJURIES,
+                       PROPDMG = c$PROPDMG, CROPDMG = c$CROPDMG )
+
+evCnt <- aggregate( c$EVTYPE_NEW, list(c$EVTYPE_NEW), length )
+evTot <- aggregate(notypes,list(c$EVTYPE_NEW), sum, na.rm=TRUE )
+evSum <- data.frame(
+  EVTYPE = evCnt$Group.1,
+  N = evCnt$x,
+  DEATHS = evTot$FATALITIES,
+  INJURIES = evTot$INJURIES,
+  PROPDMG = evTot$PROPDMG,
+  CROPDMG = evTot$CROPDMG
+  )
+evSum
+```?rank
