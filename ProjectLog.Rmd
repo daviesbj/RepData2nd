@@ -162,7 +162,6 @@ head(c)
 Add some functions to help monitor progress
 
 ```{r some helper functions for cleaning up categories}
-
 # SumCat -- summarize impact of all events matching pattern
 SumCat <- function( pattern, set = 'OLD' ){
 if( pattern != 'other' ) pattern <- toupper(pattern)
@@ -181,29 +180,224 @@ message( '   ', sprintf( '%.2e', sum( c$CROPDMG[which], na.rm=TRUE ) ), ' CROPDM
 }
 
 # Matches() -- enumerate event type matching pattern
-Matches <- function( pattern ){ levels( as.factor( evType[ grep( pattern, evType ) ] ) ) }
+Matches <- function( pattern ){
+levels( as.factor( evType[ grepl( toupper(pattern), evType ) &
+                          ( c$EVTYPE_NEW == 'other' )
+                          ] 
+                   ) 
+        )
+}
 
 # Nmatch() -- how many
-Nmatch  <- function( pattern ){ length( matches( pattern ) ) }
+Nmatch  <- function( pattern ){ length( Matches( pattern ) ) }
 
 # Others() -- which not done yet
 Others  <- function(){ levels( as.factor( evType[ c$EVTYPE_NEW == 'other' ] ) ) }
 
 # SetNew() -- allocate new name
-SetNew <- function( pattern_from, string_to ){
-pattern_from = toupper( pattern_from )
-string_to <- toupper( string_to )
-which <- grep( pattern_from, c$EVTYPE_OLD )
-c$EVTYPE_NEW[which] <- string_to
+SetNew <- function( theFrame, patternFrom, stringTo ){
+patternFrom = toupper( patternFrom )
+stringTo <- toupper( stringTo )
+mlist <- grepl( patternFrom, theFrame$EVTYPE_OLD ) &
+  ( theFrame$EVTYPE_NEW == 'other' )
+message( 'Replacing ', sum(mlist), ' values' )
+theFrame$EVTYPE_NEW[mlist] <- stringTo
+theFrame
 }
 ```
 
 So now we do stuff like this
 
-```{r simplify tornadoes}
-Matches('TORNADO')
+```{r simplify tornadoes TORN, cache = TRUE }
+Matches('TORN')
 SumCat('TORNADO')
+c <- SetNew( c, 'TORN', 'TORNADO' )
 ```
+
+```{r simplify floods FLOOD, cache = TRUE }
+Matches('FLOOD')
+SumCat('FLOOD')
+c <- SetNew( c, 'FLOOD', 'FLOOD' )
+```
+
+```{r simplify hurricanes HURRI, cache = TRUE }
+Matches('HURRI')
+SumCat('HURRI')
+c <- SetNew( c, 'HURRI', 'HURRICANE' )
+```
+
+```{r simplify tropical storms and depressions, cache = TRUE }
+Matches('TROPI')
+SumCat('TROPI')
+c <- SetNew( c, 'TROPI', 'TROPICAL STORM' )
+```
+
+Can't just replace __TSTM__ with __TROPICAL STORM__, alas ...
+
+```{r some tropical storms and others TSTM, cache = TRUE }
+Matches('TSTM')
+c <- SetNew( c, '^NON.TSTM', 'WIND' )
+SumCat('TSTM')
+c <- SetNew( c, 'TSTM', 'TROPICAL STORM' )
+```
+
+```{r fixing SNOW, cache = TRUE }
+Matches('SNOW')
+SumCat('SNOW')
+c <- SetNew( c, 'SNOW', 'SNOW' )
+```
+
+```{r fixing THUNDER, cache = TRUE }
+Matches('THUNDER')
+SumCat('THUNDER')
+# Someone spells badley
+c <- SetNew( c, 'THUNDER',   'THUNDERSTORM' )
+c <- SetNew( c, 'THUNDEER',  'THUNDERSTORM' )
+c <- SetNew( c, 'THUDER',    'THUNDERSTORM' )
+c <- SetNew( c, 'THUNER',    'THUNDERSTORM' )
+c <- SetNew( c, 'TUNDER',    'THUNDERSTORM' )
+```
+
+__HEAT__ seems to kill a lot of people ...
+
+```{r fixing HEAT, cache = TRUE }
+Matches('HEAT')
+SumCat('HEAT')
+c <- SetNew( c, 'HEAT', 'HEATWAVE' )
+```
+
+```{r fixing CHILL, cache = TRUE}
+Matches('CHILL')
+SumCat('CHILL')
+c <- SetNew( c, 'CHILL', 'WINDCHILL' )
+```
+
+```{r fixing HAIL, cache = TRUE}
+Matches('HAIL')
+SumCat('HAIL')
+c <- SetNew( c, 'HAIL', 'HAIL' )
+```
+
+Can't believe I missed this one ...
+
+```{r fixing WIND, cache = TRUE}
+Matches('WIND')
+SumCat('WIND')
+c <- SetNew( c, 'WIND', 'WIND' )
+```
+
+```{r fixing LIGHTNING, cache = TRUE}
+Matches('LIG')
+SumCat('LIG')
+c <- SetNew( c, 'LIG', 'LIGHTNING' )
+```
+
+```{r fixing wintry conditions in general, cache = TRUE}
+Matches('WINT')
+SumCat('WINT')
+c <- SetNew( c, 'WINT', 'WINTRY OTHER' )
+```
+
+```{r fixing fires in general, cache = TRUE}
+Matches('FIRE')
+SumCat('FIRE')
+c <- SetNew( c, 'FIRE', 'FIRES' )
+```
+
+Following command gives top n remaining in category
+
+```{r filter highest-scoring event in category }
+WorstN <- function( category, n = 10 ){
+o <- c[c$EVTYPE_NEW=='other', ];
+o <- o[ order( o[, toupper( category ) ], decreasing=TRUE ), ];
+head( o, n )
+}
+WorstN( 'injuries', 12 )
+```
+
+Consolidate a few more ...
+
+```{r some more categories, cache = TRUE }
+c <- SetNew( c, 'BLIZZ', 'BLIZZARD' )
+c <- SetNew( c, 'DROUGHT', 'DROUGHT' )
+c <- SetNew( c, 'ICE STORM', 'ICE STORM' )
+c <- SetNew( c, 'STORM SURGE', 'STORM SURGE' )
+c <- SetNew( c, 'UNSEASONABLY WARM', 'HEATWAVE' )
+c <- SetNew( c, 'COLD', 'EXTREME COLD' )
+c <- SetNew( c, 'LOW TEMPERATURE', 'EXTREME COLD' )
+c <- SetNew( c, 'FOG', 'FOG' )
+c <- SetNew( c, 'RIP', 'RIP CURRENT' )
+c <- SetNew( c, 'DUST', 'DUST STORM' )
+c <- SetNew( c, 'SURF', 'SURF' )
+c <- SetNew( c, 'LANDSLIDE', 'LANDSLIDE' )
+c <- SetNew( c, 'MUDSLIDE', 'MUDSLIDE' )
+c <- SetNew( c, 'AVALANCH?E', 'AVALANCHE' )
+c <- SetNew( c, 'HYPOTHERMIA', 'HYPOTHERMIA' )
+```
+
+Non-freezing rain ...
+
+```{r Most rain,  cache = TRUE }
+Matches('RAIN')
+Matches('^[^F].*RAIN')
+SumCat('^[^F].*RAIN')
+c <- SetNew( c, '^[^F].*RAIN', 'RAIN' )
+```
+Some ice phenomena ...
+
+```{r unpick & fix actual ice, cache = TRUE }
+WorstN('injuries')
+Matches('ICE|GLAZE')
+c <- SetNew( c, 'GLAZE', 'ICE' )
+c <- SetNew( c, 'ICE.+ROAD', 'ICE' )
+c <- SetNew( c, '^ICE$', 'ICE' )
+c <- SetNew( c, 'BLACK ICE', 'ICE' )
+```
+
+Some tidying up __FLD__ = 'FLOOD' ...
+
+```{r Fix FLD, cache = TRUE }
+Matches('FLD')
+c <- SetNew( c, 'FLD', 'FLOOD' )
+```
+
+Maritime grab-bag ...
+
+```{r fix offshore, cache = TRUE }
+c <- SetNew( c, 'SEA', 'MARITIME' )
+c <- SetNew( c, 'MARINE MISHAP', 'MARITIME' )
+c <- SetNew( c, 'MARINE ACCIDENT', 'MARITIME' )
+c <- SetNew( c, 'TSUNAMI', 'TSUNAMI' )
+c <- SetNew( c, 'WATERSPOUT', 'WATERSPOUT' )
+```
+
+Finished classifying events!
+
+```{r Final summary of classifications}
+# Everything not otherwise classified ...
+SumCat( 'other', 'new' )
+# List of new classes
+levels(as.factor(c$EVTYPE_NEW))
+```
+
+That's `r length( levels(as.factor(c$EVTYPE_NEW)))` categories, down from
+`r length(levels(as.factor(evType)))` in the filterd dataset.
 
 Get a nice year column
 ----------------------
+
+Just want the 4-digit year.
+
+```{r get vector of integer years, cache = TRUE}
+dateOrig <- as.character(s$BGN_DATE)
+nDates <- length( dateOrig )
+dateTok <- strsplit( dateOrig, '/| ' )
+years <- rep( NA, nDates )
+for( i in seq( 1, nDates ) ){ years[i] <- as.integer( dateTok[[i]][3] ) }
+summary( years )
+c$YEAR <- years
+head( c )
+```
+
+
+There's something a bit fishy about the event frequencies through time.
