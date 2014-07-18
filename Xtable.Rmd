@@ -1,0 +1,12 @@
+xtable test
+===========
+
+```{r xtable test, results = 'asis' }
+foo <- c( 1, 2, 3)
+bar <- c( 'foo', 'bar', 'baz' )
+xyzzy <- data.frame( THIS = foo, THAT = bar )
+library('xtable')
+myxt = xtable(xyzzy, digits = c( 0, 0, 5 ) )
+print( myxt, type = 'html', include.rownames = FALSE )
+```
+

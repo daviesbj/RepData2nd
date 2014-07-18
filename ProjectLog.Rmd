@@ -229,16 +229,16 @@ c <- SetNew( c, 'HURRI', 'HURRICANE' )
 ```{r simplify tropical storms and depressions, cache = TRUE }
 Matches('TROPI')
 SumCat('TROPI')
-c <- SetNew( c, 'TROPI', 'TROPICAL STORM' )
+c <- SetNew( c, 'TROPI', 'TRPCL STORM' )
 ```
 
-Can't just replace __TSTM__ with __TROPICAL STORM__, alas ...
+Can't just replace __TSTM__ with __TRPCL STORM__, alas ...
 
 ```{r some tropical storms and others TSTM, cache = TRUE }
 Matches('TSTM')
 c <- SetNew( c, '^NON.TSTM', 'WIND' )
 SumCat('TSTM')
-c <- SetNew( c, 'TSTM', 'TROPICAL STORM' )
+c <- SetNew( c, 'TSTM', 'TRPCL STORM' )
 ```
 
 ```{r fixing SNOW, cache = TRUE }
@@ -323,8 +323,8 @@ c <- SetNew( c, 'DROUGHT', 'DROUGHT' )
 c <- SetNew( c, 'ICE STORM', 'ICE STORM' )
 c <- SetNew( c, 'STORM SURGE', 'STORM SURGE' )
 c <- SetNew( c, 'UNSEASONABLY WARM', 'HEATWAVE' )
-c <- SetNew( c, 'COLD', 'EXTREME COLD' )
-c <- SetNew( c, 'LOW TEMPERATURE', 'EXTREME COLD' )
+c <- SetNew( c, 'COLD', 'XTRM COLD' )
+c <- SetNew( c, 'LOW TEMPERATURE', 'XTRM COLD' )
 c <- SetNew( c, 'FOG', 'FOG' )
 c <- SetNew( c, 'RIP', 'RIP CURRENT' )
 c <- SetNew( c, 'DUST', 'DUST STORM' )
@@ -443,4 +443,7 @@ evSum <- data.frame(
   CROPDMG = evTot$CROPDMG
   )
 evSum
-```?rank
+```
+
+Now I want to summarize the n worst CATEGORIES since 1993
+
