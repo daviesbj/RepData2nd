@@ -3,6 +3,7 @@ Project Log -- Severe Weather Impact Analysis (RDA Project 2)
 
 ```{r load necessary library}
 library('R.utils')
+library('xtable')
 ```
 
 Getting and loading the online data (cached)
@@ -437,7 +438,7 @@ evTot <- aggregate(notypes,list(c$EVTYPE_NEW), sum, na.rm=TRUE )
 evSum <- data.frame(
   EVTYPE = evCnt$Group.1,
   N = evCnt$x,
-  DEATHS = evTot$FATALITIES,
+  FATALITIES = evTot$FATALITIES,
   INJURIES = evTot$INJURIES,
   PROPDMG = evTot$PROPDMG,
   CROPDMG = evTot$CROPDMG
@@ -445,5 +446,98 @@ evSum <- data.frame(
 evSum
 ```
 
-Now I want to summarize the n worst CATEGORIES since 1993
+Analysis of Health Impacts
+--------------------------
 
+Now I want to summarize the n worst CATEGORIES since 1993 for __FATALITIES__
+and __INJURIES__. The best way to do this is by ranking the different event
+types by _descending_ impact (number of DEATHS or FATALITIES) and choosing
+the top few. As a nod to quality we'll monitor what percent of the total we
+are capturing in these top few.
+
+```{r choose how many categories}
+nCat <- 5
+```
+
+After some trial and error I went for `r nCat` categories in each case.
+
+```{r define WorstCat }
+WorstCat <- function( theFrame, impact, n = 5, format = NULL ){
+  subFrame <- theFrame[, c('EVTYPE','N',impact)]
+  catOrd <- order( theFrame[,impact], decreasing = TRUE )[1:n]
+  nWorstFrame <- subFrame[catOrd,]
+  
+  nSumFrame <- data.frame(
+    EVTYPE = c(''),
+    N = c( sum( nWorstFrame$N)),
+    IMPACT = c(sum( nWorstFrame[, impact]))    
+  )
+  colnames(nSumFrame) <- c( 'EVTYPE', 'N', impact )
+  
+  totalsFrame <- data.frame(
+    EVTYPE = c(''),
+    N = c( sum( subFrame$N)),
+    IMPACT = c(sum( subFrame[, impact]))
+  )
+  colnames(totalsFrame) <- c( 'EVTYPE', 'N', impact )
+  
+  othersFrame <- data.frame(
+    EVTYPE = c(''),
+    N = c( totalsFrame[1,'N'] - sum( nWorstFrame[,'N']) ),
+    IMPACT = c( totalsFrame[1,impact] - sum( nWorstFrame[,impact]) )
+  )
+  colnames(othersFrame) <- c( 'EVTYPE', 'N', impact )
+  
+  rankFrame <- data.frame(
+    RANK = as.character( c( c(1:n),
+                            paste0('Top ', n),
+                            'Other',
+                            'TOTAL' 
+    )
+    )
+  )
+  
+  reportFrame <- rbind(nWorstFrame, nSumFrame, othersFrame, totalsFrame )
+  
+  pcTotFrame <- data.frame(
+    FOO <- reportFrame[,impact]/totalsFrame[1,impact]*100
+  )
+  colnames(pcTotFrame) <- c( paste0( '%', impact ) )
+  
+  reportFrame <- cbind( rankFrame, reportFrame, pcTotFrame )
+  
+  if( ! is.null( format )){
+    reportFrame[,impact] <- sprintf( format, reportFrame[,impact ] )
+  }
+  
+  reportFrame
+}
+```
+
+```{r Find biggest causes of fatalities, results = 'asis' }
+worstFatalities <- WorstCat( evSum, 'FATALITIES', 5 )
+myxt <- xtable(worstFatalities,
+        digits = c( 0, 0, 0, 0, 0, 1 ),
+        caption = 'Causes of weather-related FATALITIES post-1992'
+        )
+print( myxt, type = 'html', include.rownames = FALSE )
+```
+
+```{r Find biggest causes of injuries, results = 'asis' }
+worstInjuries <- WorstCat( evSum, 'INJURIES', 5 )
+myxt <- xtable(worstInjuries,
+        digits = c( 0, 0, 0, 0, 0, 1 ),
+        caption = 'Causes of weather-related INJURIES post-1992'
+        )
+print( myxt, type = 'html', include.rownames = FALSE )
+```
+
+So the wost event types for __FATALITIES__ are
+`r worstFatalities$EVTYPE[1:nCat]`
+, accounting for
+`r worstFatalities[nCat+1,'%FATALITIES']`
+percent, and the worst for __INJURIES__ are
+`r worstInjuries$EVTYPE[1:5]`
+, accounting for 
+`r worstInjuries[nCat+1,'%INJURIES']`
+percent of the total.
