@@ -1,5 +1,33 @@
-Project Log -- Severe Weather Impact Analysis (RDA Project 2)
-=============================================================
+Health and Economic Impact of Severe Weather Events in the USA
+==============================================================
+
+__Work by:__ Brian Davies
+
+Executive Summary
+-----------------
+
+This report presents an impact analysis for severe weather events in the
+Continental US for use by response managers and policymakers.
+
+Following data download, and loading, all events with no health or economic
+impact were discarded immediately. After considerable cleanup and exploratory 
+data analysis, it was decided to
+concentrate on the years from 1993 onwards because the earlier data were thin
+and incomplete. This gave a dataset of some 227,000 events. The categorization
+was simplified from approximately 440 to approximately 30 event
+classes.
+
+Analysing the final clean dataset showed that some 80% of health impacts
+(fatalities and injuries) and economic damage (property and
+crop damage) were due to only
+five types of weather event in each case. However, the annual frequency and
+aggregate impact of these event types varied by an order of magnitude from
+one year to the next during the period under study.
+
+Software Used
+-------------
+
+This work was done using `r R.version.string` with the following libraries loaded:
 
 ```{r load necessary library}
 library('R.utils')
@@ -8,6 +36,8 @@ library('xtable')
 
 Getting and loading the online data (cached)
 --------------------------------------------
+
+Data were accessed from the sources mentioned in the study brief.
 
 ```{r Get and Load Online Data, cache = TRUE }
 qtDload = TRUE
@@ -27,7 +57,7 @@ save( s, file = 'stormDataRaw.Robj' )
 Rough Cleanup
 -------------
 
-Check for bad data:
+First we check for bad data:
 
 ```{r check for bad data, cache = TRUE }
 for( colName in colnames( s ) ){
@@ -420,8 +450,9 @@ ySum <- data.frame(
 ySum
 ```
 
-Everything changed in 1993. Deaths jumped, and CROPDMG started.
-So I'm going to ignore everything before then.
+Everything changed in 1993. Deaths jumped, and __CROPDMG__ started.
+
+__So I'm going to ignore everything before 1993__
 
 ```{r edit out everything pre-1993}
 c <- c[c$YEAR>=1993,]
@@ -532,7 +563,7 @@ myxt <- xtable(worstInjuries,
 print( myxt, type = 'html', include.rownames = FALSE )
 ```
 
-So the wost event types for __FATALITIES__ are
+So the worst event types for __FATALITIES__ are
 `r worstFatalities$EVTYPE[1:nCat]`
 , accounting for
 `r worstFatalities[nCat+1,'%FATALITIES']`
@@ -541,3 +572,112 @@ percent, and the worst for __INJURIES__ are
 , accounting for 
 `r worstInjuries[nCat+1,'%INJURIES']`
 percent of the total.
+
+We can do a multipanel graph showing the time evolution of these accident types.
+
+```{r Plot health impacts, warning = FALSE }
+onePlot <- function(
+  sourceFrame = NULL,
+  aggFunc = 'sum',
+  impact = 'FATALITIES',
+  evTypes = NULL,
+  verbose = FALSE
+){
+  colors <- c( 'black', 'red', 'green', 'blue', 'orange' )
+  Years <- levels(as.factor(sourceFrame$YEAR))
+  plotFrame <- data.frame( YEAR = Years )
+  # Assemble data frame for plotting so we can yet scale
+  nEvt <- length( evTypes )
+  for( iEv in (1:nEvt) ){
+    eVtype <- evTypes[iEv]
+    if( verbose) message( 'Doing ', eVtype )
+    typeFrame <- sourceFrame[sourceFrame$EVTYPE_NEW==eVtype,]
+    eVFrame <- data.frame(
+      YEAR = typeFrame$YEAR,
+      X = typeFrame[,impact]
+    )
+    colnames(eVFrame) <- c( 'YEAR', impact )
+    if( aggFunc == 'sum' ) sumFrame <- aggregate(eVFrame, list(eVFrame$YEAR), sum, na.rm=TRUE)
+    if( aggFunc == 'length' ) sumFrame <- aggregate(eVFrame, list(eVFrame$YEAR), length)
+    colnames(sumFrame) <- c( 'YEAR', 'foo', eVtype )
+    sumFrame$YEAR <- as.factor(sumFrame$YEAR)
+    plotFrame <- merge( plotFrame, sumFrame[,c('YEAR',eVtype)], by = 'YEAR', all.x = TRUE )
+    plotFrame[which(is.na(plotFrame[,eVtype])),eVtype] = 0
+  } 
+  yMax <- max(plotFrame[,2:(nEvt+1)])
+  if( aggFunc == 'sum' ){
+    mainTitle <- paste0( "Annual ", impact, " -- Major Event types" )
+    yLab <- paste0( "Total ", impact, " in year")
+  }
+  if( aggFunc == 'length' ){
+    mainTitle <- paste0( "Annual events with ", impact )
+    yLab <- paste0( "Number in Year" )
+  }
+  plot(plotFrame$YEAR, plotFrame[,2], type='n', lwd=2, col=colors[iEv],
+     xlab = 'YEAR', ylim = c( 0, yMax ), ylab = yLab, main = mainTitle, lwd = 0 )
+  for( iEv in (1:nEvt) ){
+    points(plotFrame$YEAR, plotFrame[,iEv+1], type='l', lwd=2, col=colors[iEv] ) 
+  }
+  legend( x = 'topright', evTypes, lwd = 2, col=colors )
+}
+
+HealthPlot <- function ( theFrame, eVsets = NULL ){
+  
+  par(mfrow=c(2,2))
+  
+  onePlot(sourceFrame = theFrame, aggFunc = 'sum', impact = 'FATALITIES',
+          evTypes = eVsets[[1]])
+  onePlot(sourceFrame = theFrame, aggFunc = 'sum', impact = 'INJURIES',
+          evTypes = eVsets[[2]])
+  onePlot(sourceFrame = theFrame, aggFunc = 'length', impact = 'FATALITIES',
+          evTypes = eVsets[[1]])
+  onePlot(sourceFrame = theFrame, aggFunc = 'length', impact = 'INJURIES',
+          evTypes = eVsets[[2]])
+}
+
+HealthPlot( c, eVsets = list( c( as.character(worstFatalities$EVTYPE[1:nCat]) ),
+                              c( as.character(worstInjuries$EVTYPE[1:nCat]) ) ) )
+```
+
+Analysis of Economic Impacts
+----------------------------
+
+Similar approach to before, worst `r nCat` categories.
+
+```{r Find biggest causes of property damage, results = 'asis' }
+worstPropDmg <- WorstCat( evSum, 'PROPDMG', 5, format = '%.3e' )
+myxt <- xtable(worstPropDmg,
+        digits = c( 0, 0, 0, 0, 0, 1 ),
+        caption = 'Causes of weather-related Property Damage post-1992'
+        )
+print( myxt, type = 'html', include.rownames = FALSE )
+```
+
+```{r Find biggest causes of crop damage, results = 'asis' }
+worstCropDmg <- WorstCat( evSum, 'CROPDMG', 5 )
+myxt <- xtable(worstCropDmg,
+        digits = c( 0, 0, 0, 0, 0, 1 ),
+        caption = 'Causes of weather-related Crop Damage post-1992'
+        )
+print( myxt, type = 'html', include.rownames = FALSE )
+```
+
+So the worst event types for __PROPDMG__ are
+`r worstPropDmg$EVTYPE[1:nCat]`
+, accounting for
+`r worstPropDmg[nCat+1,'%PROPDMG']`
+percent, and the worst for __CROPDMG__ are
+`r worstCropDmg$EVTYPE[1:5]`
+, accounting for 
+`r worstCropDmg[nCat+1,'%INJURIES']`
+percent of the total.
+
+We can do a multipanel graph showing the time evolution of these accident types.
+
+```{r Plot economic impacts, warning = FALSE }
+HealthPlot( c, eVsets = list( c( as.character(worstPropDmg$EVTYPE[1:nCat]) ),
+                              c( as.character(worstCropDmg$EVTYPE[1:nCat]) ) ) )
+```
+
+Conclusions from Statistical Analysis
+-------------------------------------
