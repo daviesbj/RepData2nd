@@ -1,10 +1,8 @@
-Health and Economic Impact of Severe Weather Events in the USA
-==============================================================
+# Health and Economic Impact of Severe Weather Events in the USA
 
 __Work by:__ Brian Davies
 
-Executive Summary
------------------
+## Synopsis
 
 This report presents an impact analysis for severe weather events in the
 Continental US for use by response managers and policymakers.
@@ -24,8 +22,7 @@ five types of weather event in each case. However, the annual frequency and
 aggregate impact of these event types varied by an order of magnitude from
 one year to the next during the period under study.
 
-Software Used
--------------
+## Software Used
 
 This work was done using `r R.version.string` with the following libraries loaded:
 
@@ -34,8 +31,11 @@ library('R.utils')
 library('xtable')
 ```
 
-Getting and loading the online data (cached)
---------------------------------------------
+## Data Processing
+
+This part of the work is organized in several sections.
+
+### Getting and loading the online data (cached)
 
 Data were accessed from the sources mentioned in the study brief.
 
@@ -54,8 +54,7 @@ s <- read.csv('StormData.csv')
 save( s, file = 'stormDataRaw.Robj' )
 ```
 
-Rough Cleanup
--------------
+### Rough Cleanup
 
 First we check for bad data:
 
@@ -84,8 +83,7 @@ s <- s[wantedEvents,]
 
 Now we're down to `r length( s$EVTYPE )` events.
 
-Clean up damage values
-----------------------
+### Clean up damage values
 
 Now to tidy up the damage values. The problem is the multipliers.
 
@@ -170,8 +168,7 @@ accessed 14 July 2014.
 
 __That's all the time I have available to spend on fixing up damage estimates__
 
-Normalize event categories
---------------------------
+### Normalize event categories
 
 Set up a smaller frame __c__ to work with
 
@@ -414,8 +411,7 @@ levels(as.factor(c$EVTYPE_NEW))
 That's `r length( levels(as.factor(c$EVTYPE_NEW)))` categories, down from
 `r length(levels(as.factor(evType)))` in the filterd dataset.
 
-Get a nice year column
-----------------------
+### Get a nice year column
 
 Just want the 4-digit year.
 
@@ -429,6 +425,8 @@ summary( years )
 c$YEAR <- years
 head( c )
 ```
+
+### Data Consistency Through Time
 
 There's something a bit fishy about the event frequencies through time.
 Here goes a nice summary table ...
@@ -477,8 +475,7 @@ evSum <- data.frame(
 evSum
 ```
 
-Analysis of Health Impacts
---------------------------
+## Analysis of Health Impacts
 
 Now I want to summarize the n worst CATEGORIES since 1993 for __FATALITIES__
 and __INJURIES__. The best way to do this is by ranking the different event
@@ -621,26 +618,26 @@ onePlot <- function(
   legend( x = 'topright', evTypes, lwd = 2, col=colors )
 }
 
-HealthPlot <- function ( theFrame, eVsets = NULL ){
+HealthPlot <- function ( theFrame, imps = NULL, eVsets = NULL ){
   
   par(mfrow=c(2,2))
   
-  onePlot(sourceFrame = theFrame, aggFunc = 'sum', impact = 'FATALITIES',
+  onePlot(sourceFrame = theFrame, aggFunc = 'sum', impact = imps[1],
           evTypes = eVsets[[1]])
-  onePlot(sourceFrame = theFrame, aggFunc = 'sum', impact = 'INJURIES',
+  onePlot(sourceFrame = theFrame, aggFunc = 'sum', impact = imps[2],
           evTypes = eVsets[[2]])
-  onePlot(sourceFrame = theFrame, aggFunc = 'length', impact = 'FATALITIES',
+  onePlot(sourceFrame = theFrame, aggFunc = 'length', impact = imps[1],
           evTypes = eVsets[[1]])
-  onePlot(sourceFrame = theFrame, aggFunc = 'length', impact = 'INJURIES',
+  onePlot(sourceFrame = theFrame, aggFunc = 'length', impact = imps[2],
           evTypes = eVsets[[2]])
 }
 
-HealthPlot( c, eVsets = list( c( as.character(worstFatalities$EVTYPE[1:nCat]) ),
+HealthPlot( c, imps = c( 'FATALITIES', 'INJURIES' ),
+            eVsets = list( c( as.character(worstFatalities$EVTYPE[1:nCat]) ),
                               c( as.character(worstInjuries$EVTYPE[1:nCat]) ) ) )
 ```
 
-Analysis of Economic Impacts
-----------------------------
+## Analysis of Economic Impacts
 
 Similar approach to before, worst `r nCat` categories.
 
@@ -675,9 +672,26 @@ percent of the total.
 We can do a multipanel graph showing the time evolution of these accident types.
 
 ```{r Plot economic impacts, warning = FALSE }
-HealthPlot( c, eVsets = list( c( as.character(worstPropDmg$EVTYPE[1:nCat]) ),
+HealthPlot( c, imps = c( 'PROPDMG', 'CROPDMG' ),
+            eVsets = list( c( as.character(worstPropDmg$EVTYPE[1:nCat]) ),
                               c( as.character(worstCropDmg$EVTYPE[1:nCat]) ) ) )
 ```
 
-Conclusions from Statistical Analysis
--------------------------------------
+## Results
+
+1. The analysis looked at the categories of events with highest overall impact on
+health (fatalities, injuries) and economic value (property and crop damage). These
+are listed in the table above.
+
+2. In the case of both health and economic damage, two impact typs in each case,
+the top five categories of
+event caused between 70% and 80% of the overall impact.
+
+3. As can be seen from the graphs, the annual frequencies varied
+considerably between event categories. There was a mixture of "high-frequency,
+moderate-impact" and "low frequency, high impact" categories.
+
+4. Some event categories (notably hurricanes and floods) caused both health and
+economic damage.
+
+5. Event frequencies in each category fluctuate strongly between years.
